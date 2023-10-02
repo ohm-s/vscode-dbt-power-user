@@ -97,7 +97,8 @@ export const createTableNode = (
 
 export const destructTable = (id: string) => {
   const splits = id.split(".");
-  const table = splits.pop() || "";
+  const table_parts = splits.splice(2);
+  const table = table_parts.join(".");
   return [table, splits[0]];
 };
 
