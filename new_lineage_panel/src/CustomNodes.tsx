@@ -136,7 +136,10 @@ export const TableNode: FunctionComponent<NodeProps> = ({ data }) => {
   const collapseLeft = collapse(false);
   const collapseRight = collapse(true);
 
-  const [label, schema] = destructTable(table);
+  const [labelParent, schema] = destructTable(table);
+  const labelParts = labelParent.split(".");
+  const label = labelParts.pop();
+  const labelHeader = labelParts.length > 0 ? labelParts.pop() : "";
   const _edges = flow.getEdges();
   return (
     <div className="position-relative">
@@ -161,7 +164,15 @@ export const TableNode: FunctionComponent<NodeProps> = ({ data }) => {
               {schema === "model" && <ModelIcon />}
               {schema === "source" && <SourceIcon />}
             </div>
-            <div className="lines-2 text-black">{label}</div>
+            <div>
+              {labelHeader !== "" && (
+                <>
+                  <div className="lines-1 text-black">{labelHeader}</div>
+                  <div className={`${styles.divider} w-100`} />
+                </>
+              )}
+              <div className="lines-2 text-black">{label}</div>
+            </div>
           </div>
           <div className={styles.divider} />
           <div className="w-100 d-flex align-items-center gap-xs">
