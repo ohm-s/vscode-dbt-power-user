@@ -13,6 +13,7 @@ import dbt.adapters.factory
 # anywhere dbt-core needs config including in all `get_adapter` calls
 dbt.adapters.factory.get_adapter = lambda config: config.adapter
 
+import json
 import os
 import threading
 import uuid
@@ -32,7 +33,8 @@ from typing import (
     Tuple,
     TypeVar,
 )
-
+from pprint import pformat
+import subprocess
 import agate
 from dbt.adapters.factory import get_adapter_class_by_name
 from dbt.config.runtime import RuntimeConfig
@@ -254,6 +256,8 @@ class DbtProject:
         if init:
             self.init_project()
 
+        my_adapter = self.get_adapter()
+        dbt.adapters.factory.AdapterContainer.lookup_adapter = lambda self, x: my_adapter
         project_parser = ManifestLoader(
             self.config, self.config.load_dependencies(), self.adapter.connections.set_query_header
         )
@@ -335,7 +339,7 @@ class DbtProject:
             self.write_manifest_artifact()
         except Exception as e:
             self.config = _config_pointer
-            raise Exception(str(e))
+            raise Exception(f"Error parsing project: {e}")
 
     def write_manifest_artifact(self) -> None:
         """Write a manifest.json to disk"""
@@ -420,6 +424,11 @@ class DbtProject:
         """Wraps adapter execute_macro. Execute a macro like a function."""
         return self.get_macro_function(macro)(kwargs=kwargs)
 
+    def notify(self, title, text):
+        os.system("""
+                osascript -e 'display notification "{}" with title "{}"'
+                """.format(text, title))
+        
     def execute_sql(self, raw_sql: str) -> DbtAdapterExecutionResult:
         """Execute dbt SQL statement against database"""
         with self.adapter.connection_named("master"):
@@ -427,6 +436,34 @@ class DbtProject:
             compiled_sql = raw_sql
             if has_jinja(raw_sql):
                 # jinja found, compile it
+                my_adapter = self.adapter
+                dbt.adapters.factory.AdapterContainer.lookup_adapter = lambda self, x: my_adapter
+                if 'DBT_COMMAND_PREFIX' in os.environ:
+                    self.notify("env", os.environ['DBT_COMMAND_PREFIX'])
+                    commandPrefix = os.environ['DBT_COMMAND_PREFIX']
+                    if "aws-vault" in commandPrefix:
+                        awsVaultCommand = commandPrefix.strip(' -')
+                        if '--json' not in awsVaultCommand:
+                            awsVaultCommand = awsVaultCommand + ' --json'
+                        #self.notify("aws-vault", awsVaultCommand)
+                        # execute aws-vault command and get the output
+                        result = subprocess.run(awsVaultCommand.split(' '), stdout=subprocess.PIPE)
+                        if result.check_returncode() != 0:
+                            raise Exception("Error executing aws-vault command")                        
+                        awsVaultOutput = result.stdout                        
+                        # parse json output
+                        awsVaultOutput = json.loads(awsVaultOutput.decode('utf-8'))
+                        # get the credentials                        
+                        # set the environment variables
+                        os.environ['AWS_ACCESS_KEY_ID'] = awsVaultOutput['AccessKeyId']
+                        os.environ['AWS_SECRET_ACCESS_KEY'] = awsVaultOutput['SecretAccessKey']
+                        os.environ['AWS_SESSION_TOKEN'] = awsVaultOutput['SessionToken']
+                        os.environ['AWS_SECURITY_TOKEN'] = awsVaultOutput['SessionToken']
+                        os.environ['AWS_DEFAULT_REGION'] = 'eu-west-1'
+                        os.environ['AWS_REGION'] = 'eu-west-1'
+                        os.environ['AWS_CREDENTIAL_EXPIRATION'] = awsVaultOutput['Expiration']
+                        
+                
                 compilation_result = self.compile_sql(raw_sql)
                 compiled_sql = compilation_result.compiled_sql
             
@@ -451,7 +488,7 @@ class DbtProject:
             # execute the SQL
             return self.execute_sql(compiled_sql or raw_sql)
         except Exception as e:
-            raise Exception(str(e))
+            raise Exception(f"Error executing node {node.name}: {e}")
 
     @lru_cache(maxsize=SQL_CACHE_SIZE)
     def compile_sql(self, raw_sql: str) -> DbtAdapterCompilationResult:
@@ -462,7 +499,7 @@ class DbtProject:
             self._clear_node(temp_node_id)
             return node
         except Exception as e:
-            raise Exception(str(e))
+            raise Exception(f"Error compiling SQL: {e}")
 
     def compile_node(self, node: "ManifestNode") -> Optional[DbtAdapterCompilationResult]:
         """Compiles existing node."""
@@ -476,7 +513,7 @@ class DbtProject:
                 compiled_node,
             )
         except Exception as e:
-            raise Exception(str(e))
+            raise Exception(f"Error compiling node {node.name}: {e}")
 
     def _clear_node(self, name="name"):
         """Removes the statically named node created by `execute_sql` and `compile_sql` in `dbt.lib`"""
