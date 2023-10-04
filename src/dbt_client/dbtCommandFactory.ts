@@ -53,6 +53,16 @@ export class DBTCommandFactory {
     };
   }
 
+  createParseDBTProjectCommand(): DBTCommand {
+    return {
+      statusMessage: "Parsing dbt project...",
+      processExecutionParams: {
+        cwd: this.getFirstWorkspacePath(),
+        args: ["-c", this.dbtCommand("'ls'")],
+      },
+    };
+  }
+
   createVersionCommand(): DBTCommand {
     return {
       statusMessage: "Detecting dbt version...",

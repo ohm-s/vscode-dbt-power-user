@@ -16,7 +16,9 @@ import {
   ViewColumn,
   window,
   workspace,
+  OutputChannel,
 } from "vscode";
+
 import { YAMLError, parse } from "yaml";
 import {
   DBTCommandFactory,
@@ -83,6 +85,7 @@ export class DBTProject implements Disposable {
 
   readonly projectRoot: Uri;
   readonly dbtProfilesDir: string; // vscode.Uri doesn't support relative urls
+
   private adapterType: string = "unknown";
   private projectName: string;
   private targetPath: string;
@@ -90,7 +93,8 @@ export class DBTProject implements Disposable {
   private macroPaths: string[];
   private python?: PythonBridge;
   private pythonBridgeInitialized = false;
-
+  private commandPrefix?: string = undefined;
+  private outputChannel: OutputChannel;
   private _onProjectConfigChanged =
     new EventEmitter<ProjectConfigChangedEvent>();
   public onProjectConfigChanged = this._onProjectConfigChanged.event;
@@ -120,6 +124,8 @@ export class DBTProject implements Disposable {
     _onManifestChanged: EventEmitter<ManifestCacheChangedEvent>,
   ) {
     this.projectRoot = path;
+    this.outputChannel = window.createOutputChannel("dbt-power-user");
+    this.terminal.setOutputChannel(this.outputChannel);
     const profileExistsInProjectRoot = existsSync(
       join(this.projectRoot.fsPath, "profiles.yml"),
     );
@@ -133,22 +139,28 @@ export class DBTProject implements Disposable {
       (profileExistsInProjectRoot ? this.projectRoot.fsPath : false) ||
       this.PythonEnvironment.environmentVariables.DBT_PROFILES_DIR ||
       join(os.homedir(), ".dbt");
+    const commandPrefix =
+      workspace.getConfiguration("dbt").get<string>("commandPrefix") || "";
+    this.dbtProjectContainer.setCommandPrefix(commandPrefix);
+    this.commandPrefix = commandPrefix;
     this.dbtProfilesDir = this.dbtProfilesDir.replace("~", os.homedir());
-    console.log("Using profile directory " + this.dbtProfilesDir);
+    this.outputChannel.appendLine(
+      "Using profile directory " + this.dbtProfilesDir,
+    );
     this.projectName = projectConfig.name;
     this.targetPath = this.findTargetPath(projectConfig);
-    console.log("Using target path " + this.targetPath);
+    this.outputChannel.appendLine("Using target path " + this.targetPath);
     this.sourcePaths = this.findSourcePaths(projectConfig);
     this.macroPaths = this.findMacroPaths(projectConfig);
 
-    console.log(
+    this.outputChannel.appendLine(
       `Registering project ${this.projectName} at ${this.projectRoot}`,
     );
 
     const dbtProjectConfigWatcher = workspace.createFileSystemWatcher(
       new RelativePattern(path, DBTProject.DBT_PROJECT_FILE),
     );
-
+    this.outputChannel.appendLine("Adding rebuild manifest watcher");
     const fireProjectChanged = debounce(
       async () => await this.rebuildManifest(),
       2000,
@@ -197,6 +209,7 @@ export class DBTProject implements Disposable {
     pythonPath: string,
     envVars: EnvironmentVariables,
   ) {
+    envVars["DBT_COMMAND_PREFIX"] = this.commandPrefix;
     if (this.python !== undefined) {
       // Python env has changed
       this.pythonBridgeInitialized = false;
@@ -291,6 +304,9 @@ export class DBTProject implements Disposable {
       this.terminal.log(
         `An error occurred while trying to refresh the project configuration: ${error}`,
       );
+      this.outputChannel.appendLine(
+        `An error occurred while trying to refresh the project configuration: ${error}`,
+      );
       this.telemetry.sendTelemetryError("projectConfigRefreshError", error);
     }
   }
@@ -324,6 +340,9 @@ export class DBTProject implements Disposable {
 
   private async rebuildManifest() {
     if (!this.pythonBridgeInitialized) {
+      this.outputChannel.appendLine(
+        "rebuildManifest: python bridge not yet initialized",
+      );
       window.showErrorMessage(
         extendErrorWithSupportLinks(
           "The dbt manifest can't be rebuilt right now as the Python environment has not yet been initialized, check the problems panel for any detected problems.",
@@ -334,6 +353,8 @@ export class DBTProject implements Disposable {
       });
       return;
     }
+    this.terminal.show(true);
+    this.terminal.log("Rebuilding dbt manifest...");
     try {
       await this.python?.lock(
         (python) => python!`to_dict(project.safe_parse_project())`,
@@ -343,6 +364,9 @@ export class DBTProject implements Disposable {
       if (exc instanceof PythonException) {
         // dbt errors can be about anything, so we just associate the error with the project file
         //  with a fixed range
+        this.outputChannel.appendLine(
+          "rebuildManifest: dbt error " + exc.message,
+        );
         this.rebuildManifestDiagnostics.set(
           Uri.joinPath(this.projectRoot, DBTProject.DBT_PROJECT_FILE),
           [

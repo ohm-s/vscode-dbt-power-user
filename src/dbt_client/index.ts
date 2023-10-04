@@ -60,6 +60,14 @@ export class DBTClient implements Disposable {
       }),
     );
     await this.checkAllInstalled();
+    await this.parseDBTProject();
+  }
+
+  private async parseDBTProject() {
+    this.terminal.log("Parsing dbt project...\n\r");
+    const parseDBTProjectCommand = await this.executeCommand(
+      this.dbtCommandFactory.createParseDBTProjectCommand(),
+    );
   }
 
   private async checkAllInstalled(): Promise<void> {
@@ -111,6 +119,11 @@ export class DBTClient implements Disposable {
     this.raiseDBTVersionCouldNotBeDeterminedEvent();
   }
 
+  private commandPrefix = "";
+  public setCommandPrefix(commandPrefix: string) {
+    this.commandPrefix = commandPrefix;
+  }
+
   addCommandToQueue(command: DBTCommand) {
     if (!this.dbtInstalled) {
       if (command.focus) {
@@ -159,14 +172,30 @@ export class DBTClient implements Disposable {
         "Could not launch command as python environment is not available",
       );
     }
-
-    return this.commandProcessExecutionFactory.createCommandProcessExecution(
-      this.pythonEnvironment.pythonPath,
-      args,
-      cwd,
-      token,
-      this.pythonEnvironment.environmentVariables,
-    );
+    if (this.commandPrefix === "") {
+      return this.commandProcessExecutionFactory.createCommandProcessExecution(
+        this.pythonEnvironment.pythonPath,
+        args,
+        cwd,
+        token,
+        this.pythonEnvironment.environmentVariables,
+      );
+    } else {
+      const newCommandParts = this.commandPrefix
+        .split(" ")
+        .filter((part) => part !== "");
+      const baseCommand = newCommandParts[0];
+      const baseCommandArgs = newCommandParts.slice(1);
+      baseCommandArgs.push(this.pythonEnvironment.pythonPath);
+      baseCommandArgs.push(...args);
+      return this.commandProcessExecutionFactory.createCommandProcessExecution(
+        baseCommand,
+        baseCommandArgs,
+        cwd,
+        token,
+        this.pythonEnvironment.environmentVariables,
+      );
+    }
   }
 
   private raiseDBTNotInstalledEvent(): void {

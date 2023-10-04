@@ -1,11 +1,15 @@
-import { EventEmitter, Terminal, window } from "vscode";
+import { EventEmitter, OutputChannel, Terminal, window } from "vscode";
 import { provideSingleton } from "../utils";
 
 @provideSingleton(DBTTerminal)
 export class DBTTerminal {
   private terminal?: Terminal;
   private readonly writeEmitter = new EventEmitter<string>();
-  private outputChannel = window.createOutputChannel(`Log - dbt`);
+  private outputChannel?: OutputChannel = undefined;
+
+  setOutputChannel(outputChannel: OutputChannel) {
+    this.outputChannel = outputChannel;
+  }
 
   show(status: boolean) {
     if (status) {
@@ -15,7 +19,7 @@ export class DBTTerminal {
   }
 
   log(message: string) {
-    this.outputChannel.append(message);
+    this.outputChannel?.append(message);
     if (this.terminal !== undefined) {
       this.writeEmitter.fire(message);
     }
