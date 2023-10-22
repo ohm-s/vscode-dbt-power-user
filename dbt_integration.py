@@ -359,6 +359,9 @@ class DbtProject:
     @lru_cache(maxsize=10)
     def get_ref_node(self, target_model_name: str) -> "ManifestNode":
         """Get a `"ManifestNode"` from a dbt project model name"""
+        my_adapter = self.get_adapter()
+        dbt.adapters.factory.AdapterContainer.lookup_adapter = lambda self, x: my_adapter
+        self.update_vault_credentials()
         if DBT_MAJOR_VER >= 1 and DBT_MINOR_VER >= 6:
             return self.dbt.resolve_ref(
                 source_node=None,
@@ -399,6 +402,32 @@ class DbtProject:
         sql_node = self.sql_parser.parse_remote(sql, node_name)
         process_node(self.config, self.dbt, sql_node)
         return sql_node
+    
+    def update_vault_credentials(self):
+        if 'DBT_COMMAND_PREFIX' in os.environ:
+            #self.notify("env", os.environ['DBT_COMMAND_PREFIX'])
+            commandPrefix = os.environ['DBT_COMMAND_PREFIX']
+            if "aws-vault" in commandPrefix:
+                awsVaultCommand = commandPrefix.strip(' -')
+                if '--json' not in awsVaultCommand:
+                    awsVaultCommand = awsVaultCommand + ' --json'
+                #self.notify("aws-vault", awsVaultCommand)
+                # execute aws-vault command and get the output
+                result = subprocess.run(awsVaultCommand.split(' '), stdout=subprocess.PIPE)
+                if result.check_returncode() != 0 and result.check_returncode() != None:
+                    raise Exception("Error executing aws-vault command")                        
+                awsVaultOutput = result.stdout                        
+                # parse json output
+                awsVaultOutput = json.loads(awsVaultOutput.decode('utf-8'))
+                # get the credentials                        
+                # set the environment variables
+                os.environ['AWS_ACCESS_KEY_ID'] = awsVaultOutput['AccessKeyId']
+                os.environ['AWS_SECRET_ACCESS_KEY'] = awsVaultOutput['SecretAccessKey']
+                os.environ['AWS_SESSION_TOKEN'] = awsVaultOutput['SessionToken']
+                os.environ['AWS_SECURITY_TOKEN'] = awsVaultOutput['SessionToken']
+                os.environ['AWS_DEFAULT_REGION'] = 'eu-west-1'
+                os.environ['AWS_REGION'] = 'eu-west-1'
+                os.environ['AWS_CREDENTIAL_EXPIRATION'] = awsVaultOutput['Expiration']        
 
     @lru_cache(maxsize=100)
     def get_macro_function(self, macro_name: str) -> Callable[[Dict[str, Any]], Any]:
@@ -434,36 +463,12 @@ class DbtProject:
         with self.adapter.connection_named("master"):
             # if no jinja chars then these are synonymous
             compiled_sql = raw_sql
+            self.update_vault_credentials()
             if has_jinja(raw_sql):
                 # jinja found, compile it
                 my_adapter = self.adapter
                 dbt.adapters.factory.AdapterContainer.lookup_adapter = lambda self, x: my_adapter
-                if 'DBT_COMMAND_PREFIX' in os.environ:
-                    self.notify("env", os.environ['DBT_COMMAND_PREFIX'])
-                    commandPrefix = os.environ['DBT_COMMAND_PREFIX']
-                    if "aws-vault" in commandPrefix:
-                        awsVaultCommand = commandPrefix.strip(' -')
-                        if '--json' not in awsVaultCommand:
-                            awsVaultCommand = awsVaultCommand + ' --json'
-                        #self.notify("aws-vault", awsVaultCommand)
-                        # execute aws-vault command and get the output
-                        result = subprocess.run(awsVaultCommand.split(' '), stdout=subprocess.PIPE)
-                        if result.check_returncode() != 0:
-                            raise Exception("Error executing aws-vault command")                        
-                        awsVaultOutput = result.stdout                        
-                        # parse json output
-                        awsVaultOutput = json.loads(awsVaultOutput.decode('utf-8'))
-                        # get the credentials                        
-                        # set the environment variables
-                        os.environ['AWS_ACCESS_KEY_ID'] = awsVaultOutput['AccessKeyId']
-                        os.environ['AWS_SECRET_ACCESS_KEY'] = awsVaultOutput['SecretAccessKey']
-                        os.environ['AWS_SESSION_TOKEN'] = awsVaultOutput['SessionToken']
-                        os.environ['AWS_SECURITY_TOKEN'] = awsVaultOutput['SessionToken']
-                        os.environ['AWS_DEFAULT_REGION'] = 'eu-west-1'
-                        os.environ['AWS_REGION'] = 'eu-west-1'
-                        os.environ['AWS_CREDENTIAL_EXPIRATION'] = awsVaultOutput['Expiration']
-                        
-                
+                                                        
                 compilation_result = self.compile_sql(raw_sql)
                 compiled_sql = compilation_result.compiled_sql
             
@@ -533,7 +538,8 @@ class DbtProject:
         return self.adapter.Relation.create_from(self.config, node)
 
     def get_columns_in_relation(self, relation: "BaseRelation") -> List[str]:
-        """Wrapper for `adapter.get_columns_in_relation`"""
+        """Wrapper for `adapter.get_columns_in_relation`"""        
+        self.update_vault_credentials()
         with self.adapter.connection_named("master"):
             return self.adapter.get_columns_in_relation(relation)
 

@@ -353,8 +353,8 @@ export class DBTProject implements Disposable {
       });
       return;
     }
-    this.terminal.show(true);
-    this.terminal.log("Rebuilding dbt manifest...");
+    //this.terminal.show(true);
+    this.outputChannel.appendLine("Rebuilding dbt manifest...");
     try {
       await this.python?.lock(
         (python) => python!`to_dict(project.safe_parse_project())`,
@@ -553,10 +553,20 @@ export class DBTProject implements Disposable {
     const refNode = (await this.python?.lock(
       (python) => python!`to_dict(project.get_ref_node(${modelName}))`,
     )) as ResolveReferenceResult;
+    window.showInformationMessage(
+      "Found ref node " +
+        refNode.database +
+        "." +
+        refNode.schema +
+        "." +
+        modelName,
+    );
     // Get columns
     return await this.python?.lock(
       (python) =>
-        python!`to_dict(project.get_columns_in_relation(project.create_relation(${refNode.database}, ${refNode.schema}, ${modelName})))`,
+        python!`to_dict(project.get_columns_in_relation(project.create_relation(${
+          refNode.database
+        }, ${refNode.schema}, ${modelName.split(".").pop()})))`,
     );
   }
 
