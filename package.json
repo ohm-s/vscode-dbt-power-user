@@ -1,6 +1,6 @@
 {
-  "name": "vscode-dbt-power-user",
-  "displayName": "dbt Power User",
+  "name": "vscode-dbt-power-user-holidu",
+  "displayName": "dbt Power User (Holidu)",
   "description": "This extension makes vscode seamlessly work with dbt",
   "icon": "media/images/dbt.png",
   "publisher": "innoverio",
@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/innoverio/vscode-dbt-power-user/issues"
   },
-  "version": "0.21.3",
+  "version": "0.21.3-b2",
   "engines": {
     "vscode": "^1.82.0"
   },
@@ -114,6 +114,10 @@
           "dbt.profilesDirOverride": {
             "type": "string",
             "description": "Override the profiles dir for every dbt command. Absolute path or relative to the directory containing profiles.yml"
+          },
+          "dbt.commandPrefix": {
+            "type": "string",
+            "description": "Prefix to shell before running any DBT command. Can be used to inject aws-vault or other tools."
           },
           "dbt.targetPathOverride": {
             "type": "string",

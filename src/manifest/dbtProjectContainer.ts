@@ -56,6 +56,12 @@ export class DBTProjectContainer implements Disposable {
     this.context = context;
   }
 
+  private commandPrefix: string = "";
+
+  public setCommandPrefix(commandPrefix: string) {
+    this.commandPrefix = commandPrefix;
+  }
+
   async initializeDBTProjects(): Promise<void> {
     const folders = workspace.workspaceFolders;
     if (folders === undefined) {
@@ -147,6 +153,7 @@ export class DBTProjectContainer implements Disposable {
       }
       return;
     }
+    this.dbtClient.setCommandPrefix(this.commandPrefix);
     this.dbtClient.addCommandToQueue(command);
   }
 

@@ -563,6 +563,9 @@ export class DocsEditViewPanel implements WebviewViewProvider {
                   }
                   // Force reload from manifest after manifest refresh
                   this.loadedFromManifest = false;
+                  if (parsedDocFile.version === undefined) {
+                    parsedDocFile.version = 2;
+                  }
                   writeFileSync(patchPath, stringify(parsedDocFile));
                   this.documentation = await this.getDocumentation();
                 } catch (error) {

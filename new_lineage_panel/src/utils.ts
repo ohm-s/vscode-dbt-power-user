@@ -96,6 +96,7 @@ export const createTableNode = (
   };
 };
 
+
 export const applyEdgeStyling = (e: Edge, highlight: boolean) => {
   e.style = highlight ? highlightEdgeStyle : defaultEdgeStyle;
   e.markerEnd = highlight ? highlightMarker : defaultMarker;

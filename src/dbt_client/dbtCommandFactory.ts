@@ -53,6 +53,16 @@ export class DBTCommandFactory {
     };
   }
 
+  createParseDBTProjectCommand(): DBTCommand {
+    return {
+      statusMessage: "Parsing dbt project...",
+      processExecutionParams: {
+        cwd: this.getFirstWorkspacePath(),
+        args: ["-c", this.dbtCommand("'ls'")],
+      },
+    };
+  }
+
   createVersionCommand(): DBTCommand {
     return {
       statusMessage: "Detecting dbt version...",
@@ -221,8 +231,11 @@ export class DBTCommandFactory {
   private dbtCommand(cmd: string | string[]): string {
     // Lets pass through these params here too
     const dbtCustomRunnerImport = workspace
-    .getConfiguration("dbt")
-    .get<string>("dbtCustomRunnerImport", "from dbt.cli.main import dbtRunner");
+      .getConfiguration("dbt")
+      .get<string>(
+        "dbtCustomRunnerImport",
+        "from dbt.cli.main import dbtRunner",
+      );
     return `has_dbt_runner = True
 try: 
     ${dbtCustomRunnerImport}

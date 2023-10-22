@@ -23,12 +23,15 @@ export class MacroParser {
           const packageName = package_name;
           const macroName =
             packageName === projectName ? name : `${packageName}.${name}`;
-          const fullPath = createFullPathForNode(
-            projectName,
-            rootPath,
-            packageName,
-            original_file_path,
-          );
+          let fullPath = original_file_path;
+          if (!original_file_path.startsWith("/")) {
+            fullPath = createFullPathForNode(
+              projectName,
+              rootPath,
+              packageName,
+              original_file_path,
+            );
+          }
           if (!fullPath) {
             return;
           }

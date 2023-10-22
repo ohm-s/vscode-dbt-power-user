@@ -184,6 +184,10 @@ export const TableNode: FunctionComponent<NodeProps> = ({ data }) => {
     setSidebarScreen(COLUMNS_SIDEBAR);
   };
 
+  const tableParts = table.split(".");
+  const tableName = tableParts.pop();
+  const schemaName = tableParts.join(".");
+
   const _edges = flow.getEdges();
   return (
     <div
@@ -212,7 +216,10 @@ export const TableNode: FunctionComponent<NodeProps> = ({ data }) => {
         >
           <div className={styles.table_header}>
             <NodeTypeIcon nodeType={nodeType} />
-            <div className="lines-2">{table}</div>
+            { schemaName && <div> <div className="lines-2">{schemaName}</div> <div className={styles.divider} /> <div className="lines-2">{tableName}</div></div> }
+            { !schemaName && <div> <div className="lines-2">{schemaName}</div> <div className="lines-2">{tableName}</div></div> }
+            
+
           </div>
           <div className={styles.divider} />
           <div className="w-100 d-flex align-items-center gap-xs">
