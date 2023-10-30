@@ -3,17 +3,16 @@
   "displayName": "dbt Power User (Holidu)",
   "description": "This extension makes vscode seamlessly work with dbt",
   "icon": "media/images/dbt.png",
-  "publisher": "innoverio",
+  "publisher": "HoliduGmbh",
   "license": "MIT",
-  "homepage": "https://github.com/innoverio/vscode-dbt-power-user",
   "repository": {
     "type": "git",
-    "url": "https://github.com/innoverio/vscode-dbt-power-user.git"
+    "url": "https://github.com/ohm-s/vscode-dbt-power-user.git"
   },
   "bugs": {
-    "url": "https://github.com/innoverio/vscode-dbt-power-user/issues"
+    "url": "https://github.com/ohm-s/vscode-dbt-power-user/issues"
   },
-  "version": "0.21.3-b2",
+  "version": "0.21.3000",
   "engines": {
     "vscode": "^1.82.0"
   },

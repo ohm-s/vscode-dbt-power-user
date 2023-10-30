@@ -1,3 +1,7 @@
+# Fork to add aws-vault support for Athena & Redshift DBT use cases
+
+New configuration to specifiy aws-vault command line call to authenticate credentials
+
 # vscode-dbt-power-user
 
 ![Last updated](https://img.shields.io/visual-studio-marketplace/last-updated/innoverio.vscode-dbt-power-user) ![Version](https://img.shields.io/visual-studio-marketplace/v/innoverio.vscode-dbt-power-user) ![Installs](https://img.shields.io/visual-studio-marketplace/i/innoverio.vscode-dbt-power-user) ![Build passing](https://github.com/innoverio/vscode-dbt-power-user/workflows/.github/workflows/ci.yml/badge.svg)
@@ -66,6 +70,7 @@ When you set the Python interpreter, the extension will try to detect dbt and yo
 In case you want to use a custom runner. You can overwrite the import string for it.
 
 For an example, you have module `my_custom_runner`:
+
 ```python
 from dbt.cli.main import dbtRunner
 

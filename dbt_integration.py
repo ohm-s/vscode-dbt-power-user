@@ -350,6 +350,9 @@ class DbtProject:
         self.clear_caches()
         _config_pointer = copy(self.config)
         try:
+            commandPrefix = os.environ['DBT_COMMAND_PREFIX'] if 'DBT_COMMAND_PREFIX' in os.environ else ''
+            if 'aws-vault' in commandPrefix:
+                self.update_vault_credentials()
             self.parse_project(init=reinit)
             self.write_manifest_artifact()
         except Exception as e:
